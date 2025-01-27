@@ -3,6 +3,7 @@ package com.ageinghippy.spring_batch_demo.configuration;
 import com.ageinghippy.spring_batch_demo.model.Designation;
 import com.ageinghippy.spring_batch_demo.model.Employee;
 import com.ageinghippy.spring_batch_demo.repository.EmployeeRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -28,6 +29,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.io.FileNotFoundException;
 import java.util.Date;
 import java.util.Map;
 
@@ -61,6 +63,9 @@ public class BatchConfiguration {
                 .reader(csvReader)
                 .processor(processor)
                 .writer(writer)
+                .faultTolerant()
+                .skipLimit(5)
+                .noSkip(FileNotFoundException.class)
                 .build();
     }
 
@@ -72,14 +77,17 @@ public class BatchConfiguration {
             EmployeeWriter writer,
             PlatformTransactionManager transactionManager) {
 
-        // this step converts the designation into matching enum
         return new StepBuilder("designation-step", jobRepository)
                 .<Employee, Employee>chunk(100, transactionManager)
                 .reader(repositoryReader)
                 .processor(processor)
                 .writer(writer)
+                .faultTolerant()
+                .skipLimit(10)
+                .skip(EntityNotFoundException.class)
                 .build();
     }
+
 
     @Bean
     public FlatFileItemReader<Employee> csvReader(@Value("${inputFile}") String inputFile) {
